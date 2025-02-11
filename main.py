@@ -91,7 +91,7 @@ class ChatGPTWrapper:
                 # Добавляем сообщение пользователя в историю
                 history_data["messages"].append({"role": "user", "content": user_input})
 
-                updated_prompt = config.promt
+                updated_prompt = promt
                 response = client.chat.completions.create(
                     model=gpt_model,
                     temperature=1,
@@ -123,6 +123,7 @@ class SelfbotClient(discord.Client):
         global BOT_IDS
         # Сохраняем ID текущего бота в глобальное множество, чтобы игнорировать других ботов
         BOT_IDS.add(self.user.id)
+        # Рандомная задерка старта каждого бота после запуска скрипта
         start_timer = random.uniform(20, 120)
         print(f'Logged in as {Fore.RED}{self.user}{Fore.RESET}, time to start {Fore.GREEN}{int(start_timer)}{Fore.RESET} sec')
         await asyncio.sleep(start_timer)
