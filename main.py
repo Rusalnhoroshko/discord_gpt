@@ -122,7 +122,7 @@ class SelfbotClient(discord.Client):
         global BOT_IDS
         # Сохраняем ID текущего бота в глобальное множество, чтобы игнорировать других ботов
         BOT_IDS.add(self.user.id)
-        start_timer = random.uniform(10, 120)
+        start_timer = random.uniform(5, 12)
         print(BOT_IDS)
         print(f'Logged in as {Fore.RED}{self.user}{Fore.RESET}, time to start {Fore.GREEN}{int(start_timer)}{Fore.RESET} sec')
         await asyncio.sleep(start_timer)
@@ -178,7 +178,7 @@ class SelfbotClient(discord.Client):
                     next_allowed_time = channel_cooldowns.get(channel_id, 0)
                     if current_time < next_allowed_time:
                         continue
-                    messages = [message async for message in channel.history(limit=20)]
+                    messages = [message async for message in channel.history(limit=30)]
                     if messages:
                         message = random.choice(messages)
                     else:
@@ -210,11 +210,12 @@ class SelfbotClient(discord.Client):
                                 with open(file_path, "w") as history_file:
                                     json.dump(history_data, history_file, indent=2)
                                 self.add_to_processed_messages(message.id)
-                                channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + default_sleep
-                                print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}{Fore.GREEN} sleeping {int(default_sleep)} sec in {Fore.RESET}{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
+                                random_sleep = random.uniform(*default_sleep)
+                                channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
+                                print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}{Fore.GREEN} sleeping {int(random_sleep)} sec in {Fore.RESET}{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
                             except asyncio.TimeoutError:
-                                channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + default_sleep
-                                print(f"{Fore.RED}Timeout for {Fore.MAGENTA}{self.user.name}{Fore.RESET} in {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}. Sleeping for {Fore.GREEN}{default_sleep} sec{Fore.RESET}{Fore.RESET}\n")
+                                channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
+                                print(f"{Fore.RED}Timeout for {Fore.MAGENTA}{self.user.name}{Fore.RESET} in {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}. Sleeping for {Fore.GREEN}{random_sleep} sec{Fore.RESET}{Fore.RESET}\n")
                             break
             await asyncio.sleep(10)
 
