@@ -17,7 +17,7 @@ allowed_channels = [2222222222222222222, #german
                     ]
 
 # Рандомная задержка в канале 
-default_sleep = random.uniform(600, 900)
+default_sleep = (600, 900)
 # Модель GPT
 gpt_model = "gpt-4o-mini"
  
