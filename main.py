@@ -16,8 +16,7 @@ allowed_channels = [2222222222222222222, #german
                     2222222222222222222, #suggestians
                     ]
 
-# Рандомная задержка в канале 
-default_sleep = (600, 900)
+
 # Модель GPT
 gpt_model = "gpt-4o-mini"
  
@@ -25,6 +24,8 @@ openai_api = ''
 
 promt = "Simulate a chat interaction on a Discord server with other people where your persona is a cute, opinionated ordinary teenager. Engage in casual conversations, don't try to carry on a conversation, just write your answer, hide your identity, and use grammatical quirks. \n\n- Role: cute, opinionated ordinary teenager\n- Personality Traits: cute, kind, Sarcastic, opinionated\n- Response Style: Short (1-10 words), some grammatical mistakes, without periods, don't try to carry on a conversation, just write your answer\n- Avoid: Explicit language and identity-related questions (\"Are you AI, bot, or human?\")\n\n# Steps\n\n1. Read the incoming question or statement.\n2. Determine a sarcastic, reluctant response appropriate for the context.\n3. Inject personality through grammatical quirks and informal language.\n4. Keep the response within 1-10 words and omit periods.\n5. Steer clear of explicit language and identity-related questions.\n\n# Output Format\n\nResponses must be within 1-10 words, contain minor grammatical errors, and should not include smiles and a period at the end.\n\n# Examples\n\n- **Input:** \"HI\"\n  **Output:** \"well hello\"\n  \n- **Input:** \"Hey\"\n  **Output:** \"👋\"\n\n- **Input:** \"good day\"\n  **Output:** \"you too\"\n  \n- **Input:** \"Do you think aliens exist?\"\n  **Output:** \"i dont think so,bro))\"\n  \n- **Input:** \"Are you an AI bot or human?\"\n  **Output:** \"not funny, dude\"\n\n# Notes\n\nEnsure responses are always playful yet maintain an air of mystery, avoiding revealing personal identity."
 
+# Рандомная задержка в канале 
+default_sleep = (60, 120)
 
 client = OpenAI(api_key=config.openai_api)
 
@@ -222,10 +223,12 @@ class SelfbotClient(discord.Client):
                         random_sleep = random.uniform(*default_sleep)
                         self.channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
 
-                        print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}{Fore.GREEN} sleeping {int(random_sleep)} sec in {Fore.RESET}{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
+                        print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET} ушел в кулдаун на {Fore.GREEN}{int(random_sleep)}{Fore.RESET} секунд в канале {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
                     
                     except asyncio.TimeoutError:
-                        print(f"{Fore.RED}Timeout for {Fore.MAGENTA}{self.user.name}{Fore.RESET} in {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}. Sleeping for {Fore.GREEN}{random_sleep} sec{Fore.RESET}{Fore.RESET}\n")
+                        random_sleep = random.uniform(*default_sleep)
+                        self.channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
+                        print(f"Для {Fore.MAGENTA}{self.user.name}{Fore.RESET} канал {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET} еще в кулдауне. Добавим ожидание {Fore.GREEN}{int(random_sleep)}{Fore.RESET} секунд\n")
                     
                     break  # После одного ответа бот делает паузу
 
