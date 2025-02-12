@@ -27,7 +27,7 @@ promt = "Simulate a chat interaction on a Discord server with other people where
 # Рандомная задержка в канале 
 default_sleep = (60, 120)
 
-client = OpenAI(api_key=config.openai_api)
+client = OpenAI(api_key=openai_api)
 
 BOT_IDS = set()
 
