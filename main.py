@@ -92,7 +92,7 @@ class ChatGPTWrapper:
                 # Добавляем сообщение пользователя в историю
                 history_data["messages"].append({"role": "user", "content": user_input})
 
-                updated_prompt = config.promt
+                updated_prompt = promt
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
                     temperature=0.7,
