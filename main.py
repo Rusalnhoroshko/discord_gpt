@@ -29,7 +29,6 @@ promt = "Simulate a chat interaction on a Discord server with other people where
 client = OpenAI(api_key=openai_api)
 BOT_IDS = set()
 
-
 # Функция для считывания токенов из файла
 def read_tokens(file_path="discord.txt"):
     """Считывает токены Discord из файла (один токен на строку)."""
@@ -91,12 +90,12 @@ class ChatGPTWrapper:
                 # Добавляем сообщение пользователя в историю
                 history_data["messages"].append({"role": "user", "content": user_input})
 
-                updated_prompt = promt
+                updated_prompt = config.promt
                 response = client.chat.completions.create(
-                    model=gpt_model,
-                    temperature=1,
+                    model="gpt-4o-mini",
+                    temperature=0.7,
                     max_completion_tokens=30,
-                    top_p=0.5,
+                    top_p=1,
                     frequency_penalty=0,
                     presence_penalty=0,
                     messages=[{"role": "system", "content": updated_prompt}] + history_data["messages"]
@@ -123,8 +122,8 @@ class SelfbotClient(discord.Client):
         global BOT_IDS
         # Сохраняем ID текущего бота в глобальное множество, чтобы игнорировать других ботов
         BOT_IDS.add(self.user.id)
-        # Рандомная задерка старта каждого бота после запуска скрипта
-        start_timer = random.uniform(20, 120)
+        start_timer = random.uniform(2, 12)
+        print(BOT_IDS)
         print(f'Logged in as {Fore.RED}{self.user}{Fore.RESET}, time to start {Fore.GREEN}{int(start_timer)}{Fore.RESET} sec')
         await asyncio.sleep(start_timer)
         self.bg_task = self.loop.create_task(self.check_messages())
@@ -161,7 +160,7 @@ class SelfbotClient(discord.Client):
                         print(f"Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
                         if attempt + 1 < max_retries:
                             # Можно добавить задержку перед повторной попыткой
-                            await asyncio.sleep(60)
+                            await asyncio.sleep(100)
                         else:
                             print("Не удалось отправить сообщение после максимального числа попыток.")
             else:
@@ -184,8 +183,10 @@ class SelfbotClient(discord.Client):
                         message = random.choice(messages)
                     else:
                         continue
-                    if message.author == self.user or message.author.id == self.user.id or message.author.id in BOT_IDS:
+                    if message.author == self.user or message.author.id == self.user.id:
                         continue
+                    if message.author.id in BOT_IDS:
+                        return
                     if message.reference:
                         continue
                     if str(message.id) not in self.get_processed_messages():
@@ -204,6 +205,7 @@ class SelfbotClient(discord.Client):
                                     await asyncio.wait_for(message.reply(response_text), timeout=5)
                                 else:
                                     await asyncio.wait_for(message.channel.send(response_text), timeout=5)
+                                # await asyncio.wait_for(message.channel.send(response_text), timeout=5)
                                 os.makedirs(user_folder_path, exist_ok=True)
                                 with open(file_path, "w") as history_file:
                                     json.dump(history_data, history_file, indent=2)
@@ -214,7 +216,7 @@ class SelfbotClient(discord.Client):
                                 channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + default_sleep
                                 print(f"{Fore.RED}Timeout for {Fore.MAGENTA}{self.user.name}{Fore.RESET} in {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}. Sleeping for {Fore.GREEN}{default_sleep} sec{Fore.RESET}{Fore.RESET}\n")
                             break
-            await asyncio.sleep(60)
+            await asyncio.sleep(10)
 
     def get_processed_messages(self):
         processed_messages_file = os.path.join(self.history_folder_path, "processed_messages.txt")
