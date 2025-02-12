@@ -160,7 +160,7 @@ class SelfbotClient(discord.Client):
                             json.dump(history_data, history_file, indent=2)
                         break  # если отправка успешна — выходим из цикла
                     except asyncio.TimeoutError:
-                        print(f"Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
+                        print(f"{Fore.LIGHTGREEN_EX}{self.user.name}{Fore.RESET}: Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
                         if attempt + 1 < max_retries:
                             # Можно добавить задержку перед повторной попыткой
                             await asyncio.sleep(60)
