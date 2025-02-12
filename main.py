@@ -26,7 +26,8 @@ openai_api = ''
 promt = "Simulate a chat interaction on a Discord server with other people where your persona is a cute, opinionated ordinary teenager. Engage in casual conversations, don't try to carry on a conversation, just write your answer, hide your identity, and use grammatical quirks. \n\n- Role: cute, opinionated ordinary teenager\n- Personality Traits: cute, kind, Sarcastic, opinionated\n- Response Style: Short (1-10 words), some grammatical mistakes, without periods, don't try to carry on a conversation, just write your answer\n- Avoid: Explicit language and identity-related questions (\"Are you AI, bot, or human?\")\n\n# Steps\n\n1. Read the incoming question or statement.\n2. Determine a sarcastic, reluctant response appropriate for the context.\n3. Inject personality through grammatical quirks and informal language.\n4. Keep the response within 1-10 words and omit periods.\n5. Steer clear of explicit language and identity-related questions.\n\n# Output Format\n\nResponses must be within 1-10 words, contain minor grammatical errors, and should not include smiles and a period at the end.\n\n# Examples\n\n- **Input:** \"HI\"\n  **Output:** \"well hello\"\n  \n- **Input:** \"Hey\"\n  **Output:** \"👋\"\n\n- **Input:** \"good day\"\n  **Output:** \"you too\"\n  \n- **Input:** \"Do you think aliens exist?\"\n  **Output:** \"i dont think so,bro))\"\n  \n- **Input:** \"Are you an AI bot or human?\"\n  **Output:** \"not funny, dude\"\n\n# Notes\n\nEnsure responses are always playful yet maintain an air of mystery, avoiding revealing personal identity."
 
 
-client = OpenAI(api_key=openai_api)
+client = OpenAI(api_key=config.openai_api)
+
 BOT_IDS = set()
 
 # Функция для считывания токенов из файла
@@ -95,7 +96,7 @@ class ChatGPTWrapper:
                     model="gpt-4o-mini",
                     temperature=0.7,
                     max_completion_tokens=30,
-                    top_p=1,
+                    top_p=0.5,
                     frequency_penalty=0,
                     presence_penalty=0,
                     messages=[{"role": "system", "content": updated_prompt}] + history_data["messages"]
@@ -117,13 +118,14 @@ class SelfbotClient(discord.Client):
         super().__init__(*args, **kwargs)
         self.history_folder_path = history_folder_path
         self.chatbot = ChatGPTWrapper(self.history_folder_path)
+        self.channel_cooldowns = {}
+
 
     async def on_ready(self):
         global BOT_IDS
         # Сохраняем ID текущего бота в глобальное множество, чтобы игнорировать других ботов
         BOT_IDS.add(self.user.id)
         start_timer = random.uniform(10, 120)
-        print(BOT_IDS)
         print(f'Logged in as {Fore.RED}{self.user}{Fore.RESET}, time to start {Fore.GREEN}{int(start_timer)}{Fore.RESET} sec')
         await asyncio.sleep(start_timer)
         self.bg_task = self.loop.create_task(self.check_messages())
@@ -160,7 +162,7 @@ class SelfbotClient(discord.Client):
                         print(f"Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
                         if attempt + 1 < max_retries:
                             # Можно добавить задержку перед повторной попыткой
-                            await asyncio.sleep(100)
+                            await asyncio.sleep(60)
                         else:
                             print("Не удалось отправить сообщение после максимального числа попыток.")
             else:
@@ -168,56 +170,67 @@ class SelfbotClient(discord.Client):
 
     async def check_messages(self):
         await self.wait_until_ready()
-        channel_cooldowns = {}
+        
         while not self.is_closed():
-            shuffeled_allowed_channels = random.sample(allowed_channels, len(allowed_channels))
+            shuffled_allowed_channels = random.sample(allowed_channels, len(allowed_channels))
             current_time = asyncio.get_event_loop().time()
-            for channel_id in shuffeled_allowed_channels:
+
+            for channel_id in shuffled_allowed_channels:
                 channel = self.get_channel(channel_id)
-                if channel:
-                    next_allowed_time = channel_cooldowns.get(channel_id, 0)
-                    if current_time < next_allowed_time:
-                        continue
-                    messages = [message async for message in channel.history(limit=30)]
-                    if messages:
-                        message = random.choice(messages)
-                    else:
-                        continue
-                    if message.author == self.user or message.author.id == self.user.id:
-                        continue
-                    if message.author.id in BOT_IDS:
-                        return
-                    if message.reference:
-                        continue
-                    if str(message.id) not in self.get_processed_messages():
-                        if not message.reference:
-                            user_name = message.author.display_name or message.author.name
-                            response_text, history_data, user_folder_path, file_path = await self.chatbot.generate_response(message.content, user_name, message)
-                            print(f"{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n"
-                                  f"{Fore.MAGENTA}{user_name}{Fore.RESET}: {message.content}\n"
-                                  f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}: {response_text}\n")
-                            if response_text.strip():
-                                typing_time = len(response_text) * 0.5
-                                async with message.channel.typing():
-                                    await asyncio.sleep(typing_time)
-                            try:
-                                if random.choice([True, False]):
-                                    await asyncio.wait_for(message.reply(response_text), timeout=5)
-                                else:
-                                    await asyncio.wait_for(message.channel.send(response_text), timeout=5)
-                                # await asyncio.wait_for(message.channel.send(response_text), timeout=5)
-                                os.makedirs(user_folder_path, exist_ok=True)
-                                with open(file_path, "w") as history_file:
-                                    json.dump(history_data, history_file, indent=2)
-                                self.add_to_processed_messages(message.id)
-                                random_sleep = random.uniform(*default_sleep)
-                                channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
-                                print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}{Fore.GREEN} sleeping {int(random_sleep)} sec in {Fore.RESET}{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
-                            except asyncio.TimeoutError:
-                                channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
-                                print(f"{Fore.RED}Timeout for {Fore.MAGENTA}{self.user.name}{Fore.RESET} in {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}. Sleeping for {Fore.GREEN}{random_sleep} sec{Fore.RESET}{Fore.RESET}\n")
-                            break
+                if not channel:
+                    continue
+
+                next_allowed_time = self.channel_cooldowns.get(channel_id, 0)
+                if current_time < next_allowed_time:
+                    continue  # Пропускаем, если канал на кулдауне
+
+                messages = [message async for message in channel.history(limit=30)]
+                if not messages:
+                    continue
+
+                message = random.choice(messages)
+
+                if message.author == self.user or message.author.id in BOT_IDS or message.reference:
+                    continue
+
+                if str(message.id) not in self.get_processed_messages():
+                    user_name = message.author.display_name or message.author.name
+                    response_text, history_data, user_folder_path, file_path = await self.chatbot.generate_response(message.content, user_name, message)
+
+                    print(f"{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n"
+                        f"{Fore.MAGENTA}{user_name}{Fore.RESET}: {message.content}\n"
+                        f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}: {response_text}\n")
+
+                    if response_text.strip():
+                        typing_time = len(response_text) * 0.5
+                        async with message.channel.typing():
+                            await asyncio.sleep(typing_time)
+
+                    try:
+                        if random.choice([True, False]):
+                            await asyncio.wait_for(message.reply(response_text), timeout=5)
+                        else:
+                            await asyncio.wait_for(message.channel.send(response_text), timeout=5)
+
+                        os.makedirs(user_folder_path, exist_ok=True)
+                        with open(file_path, "w") as history_file:
+                            json.dump(history_data, history_file, indent=2)
+
+                        self.add_to_processed_messages(message.id)
+
+                        # Генерируем случайную задержку и добавляем в кулдаун **ТОЛЬКО ДЛЯ ЭТОГО БОТА**
+                        random_sleep = random.uniform(*default_sleep)
+                        self.channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
+
+                        print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET}{Fore.GREEN} sleeping {int(random_sleep)} sec in {Fore.RESET}{Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
+                    
+                    except asyncio.TimeoutError:
+                        print(f"{Fore.RED}Timeout for {Fore.MAGENTA}{self.user.name}{Fore.RESET} in {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}. Sleeping for {Fore.GREEN}{random_sleep} sec{Fore.RESET}{Fore.RESET}\n")
+                    
+                    break  # После одного ответа бот делает паузу
+
             await asyncio.sleep(10)
+
 
     def get_processed_messages(self):
         processed_messages_file = os.path.join(self.history_folder_path, "processed_messages.txt")
