@@ -122,7 +122,7 @@ class SelfbotClient(discord.Client):
         global BOT_IDS
         # Сохраняем ID текущего бота в глобальное множество, чтобы игнорировать других ботов
         BOT_IDS.add(self.user.id)
-        start_timer = random.uniform(5, 12)
+        start_timer = random.uniform(10, 120)
         print(BOT_IDS)
         print(f'Logged in as {Fore.RED}{self.user}{Fore.RESET}, time to start {Fore.GREEN}{int(start_timer)}{Fore.RESET} sec')
         await asyncio.sleep(start_timer)
