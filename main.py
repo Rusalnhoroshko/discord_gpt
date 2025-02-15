@@ -13,7 +13,7 @@ from openai import OpenAI, OpenAIError
 allowed_channels = [2222222222222222222, #german
                     2222222222222222222, #spanish
                     2222222222222222222, #english
-                    2222222222222222222, #suggestians
+                    2222222222222222222, #suggestions
                     ]
 
 
@@ -25,7 +25,7 @@ openai_api = ''
 promt = "Simulate a chat interaction on a Discord server with other people where your persona is a cute, opinionated ordinary teenager. Engage in casual conversations, don't try to carry on a conversation, just write your answer, hide your identity, and use grammatical quirks. \n\n- Role: cute, opinionated ordinary teenager\n- Personality Traits: cute, kind, Sarcastic, opinionated\n- Response Style: Short (1-10 words), some grammatical mistakes, without periods, don't try to carry on a conversation, just write your answer\n- Avoid: Explicit language and identity-related questions (\"Are you AI, bot, or human?\")\n\n# Steps\n\n1. Read the incoming question or statement.\n2. Determine a sarcastic, reluctant response appropriate for the context.\n3. Inject personality through grammatical quirks and informal language.\n4. Keep the response within 1-10 words and omit periods.\n5. Steer clear of explicit language and identity-related questions.\n\n# Output Format\n\nResponses must be within 1-10 words, contain minor grammatical errors, and should not include smiles and a period at the end.\n\n# Examples\n\n- **Input:** \"HI\"\n  **Output:** \"well hello\"\n  \n- **Input:** \"Hey\"\n  **Output:** \"👋\"\n\n- **Input:** \"good day\"\n  **Output:** \"you too\"\n  \n- **Input:** \"Do you think aliens exist?\"\n  **Output:** \"i dont think so,bro))\"\n  \n- **Input:** \"Are you an AI bot or human?\"\n  **Output:** \"not funny, dude\"\n\n# Notes\n\nEnsure responses are always playful yet maintain an air of mystery, avoiding revealing personal identity."
 
 # Рандомная задержка в канале 
-default_sleep = (60, 120)
+default_sleep = (420, 600)
 
 client = OpenAI(api_key=openai_api)
 
@@ -60,23 +60,17 @@ def read_proxies(file_path="proxy.txt"):
             proxies.append((proxy_url, proxy_auth))
     return proxies
 
-# Класс для работы с ChatGPT, использующий отдельную папку для хранения истории
+
+MAX_HISTORY_LENGTH = 20
+
 class ChatGPTWrapper:
     def __init__(self, history_folder_path):
         self.mutex = asyncio.Lock()
         self.history_folder_path = history_folder_path
 
     async def generate_response(self, user_input, user_name, message):
-        """
-        Генерирует ответ и формирует обновлённую историю переписки.
-        Возвращает: сгенерированный ответ, данные истории,
-        путь к папке пользователя и путь к файлу истории.
-        """
         async with self.mutex:
             try:
-                await asyncio.sleep(3)
-
-                # Формируем имена для файлов на основе названий сервера и пользователя
                 sanitized_server_name = re.sub(r'\W+', '', message.guild.name)
                 sanitized_user_name = re.sub(r'\W+', '', user_name)
                 user_id = f"{sanitized_user_name}_{sanitized_server_name}"
@@ -89,23 +83,37 @@ class ChatGPTWrapper:
                 else:
                     history_data = {"messages": []}
 
-                # Добавляем сообщение пользователя в историю
+                # Добавляем сообщение пользователя
                 history_data["messages"].append({"role": "user", "content": user_input})
 
+                # Обрезаем историю до последних N
+                if len(history_data["messages"]) > MAX_HISTORY_LENGTH:
+                    history_data["messages"] = history_data["messages"][-MAX_HISTORY_LENGTH:]
+
+                # Формируем prompt
                 updated_prompt = promt
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
-                    temperature=0.7,
+                    temperature=1.1,
                     max_completion_tokens=30,
-                    top_p=0.5,
+                    top_p=1,
                     frequency_penalty=0,
                     presence_penalty=0,
                     messages=[{"role": "system", "content": updated_prompt}] + history_data["messages"]
                 )
                 generated_response = response.choices[0].message.content.strip()
 
-                # Добавляем ответ ассистента в историю (запись файла производится вне этого метода)
+                # Добавляем ответ ассистента
                 history_data["messages"].append({"role": "assistant", "content": generated_response})
+                
+                # Снова обрезаем, если нужно
+                if len(history_data["messages"]) > MAX_HISTORY_LENGTH:
+                    history_data["messages"] = history_data["messages"][-MAX_HISTORY_LENGTH:]
+
+                # Сохраняем историю
+                os.makedirs(user_folder_path, exist_ok=True)
+                with open(file_path, "w") as history_file:
+                    json.dump(history_data, history_file, indent=2)
 
                 return generated_response, history_data, user_folder_path, file_path
 
@@ -126,7 +134,7 @@ class SelfbotClient(discord.Client):
         global BOT_IDS
         # Сохраняем ID текущего бота в глобальное множество, чтобы игнорировать других ботов
         BOT_IDS.add(self.user.id)
-        start_timer = random.uniform(10, 120)
+        start_timer = random.uniform(10, 240)
         print(f'Logged in as {Fore.RED}{self.user}{Fore.RESET}, time to start {Fore.GREEN}{int(start_timer)}{Fore.RESET} sec')
         await asyncio.sleep(start_timer)
         self.bg_task = self.loop.create_task(self.check_messages())
@@ -151,7 +159,7 @@ class SelfbotClient(discord.Client):
                 typing_time = len(response_text) * 0.5
                 async with message.channel.typing():
                     await asyncio.sleep(typing_time)
-                max_retries = 3
+                max_retries = 2
                 for attempt in range(max_retries):
                     try:
                         await asyncio.wait_for(message.reply(response_text), timeout=5)
@@ -160,10 +168,10 @@ class SelfbotClient(discord.Client):
                             json.dump(history_data, history_file, indent=2)
                         break  # если отправка успешна — выходим из цикла
                     except asyncio.TimeoutError:
-                        print(f"{Fore.LIGHTGREEN_EX}{self.user.name}{Fore.RESET}: Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
                         if attempt + 1 < max_retries:
                             # Можно добавить задержку перед повторной попыткой
-                            await asyncio.sleep(60)
+                            print(f"{Fore.LIGHTGREEN_EX}{self.user.name}{Fore.RESET}: Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
+                            await asyncio.sleep(120)
                         else:
                             print("Не удалось отправить сообщение после максимального числа попыток.")
             else:
@@ -223,7 +231,7 @@ class SelfbotClient(discord.Client):
                         random_sleep = random.uniform(*default_sleep)
                         self.channel_cooldowns[channel_id] = asyncio.get_event_loop().time() + random_sleep
 
-                        print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET} ушел в кулдаун на {Fore.GREEN}{int(random_sleep)}{Fore.RESET} секунд в канале {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
+                        # print(f"{Fore.MAGENTA}{self.user.name}{Fore.RESET} ушел в кулдаун на {Fore.GREEN}{int(random_sleep)}{Fore.RESET} секунд в канале {Fore.MAGENTA}({message.guild.name}/#{message.channel.name}){Fore.RESET}\n")
                     
                     except asyncio.TimeoutError:
                         random_sleep = random.uniform(*default_sleep)
@@ -232,7 +240,7 @@ class SelfbotClient(discord.Client):
                     
                     break  # После одного ответа бот делает паузу
 
-            await asyncio.sleep(10)
+            await asyncio.sleep(5)
 
 
     def get_processed_messages(self):
