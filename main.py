@@ -159,21 +159,14 @@ class SelfbotClient(discord.Client):
                 typing_time = len(response_text) * 0.5
                 async with message.channel.typing():
                     await asyncio.sleep(typing_time)
-                max_retries = 2
-                for attempt in range(max_retries):
-                    try:
-                        await asyncio.wait_for(message.reply(response_text), timeout=5)
-                        os.makedirs(user_folder_path, exist_ok=True)
-                        with open(file_path, "w") as history_file:
-                            json.dump(history_data, history_file, indent=2)
-                        break  # если отправка успешна — выходим из цикла
-                    except asyncio.TimeoutError:
-                        if attempt + 1 < max_retries:
-                            # Можно добавить задержку перед повторной попыткой
-                            print(f"{Fore.LIGHTGREEN_EX}{self.user.name}{Fore.RESET}: Ответ не отправлен, попытка {attempt + 1} из {max_retries}")
-                            await asyncio.sleep(120)
-                        else:
-                            print("Не удалось отправить сообщение после максимального числа попыток.")
+                
+                try:
+                    await asyncio.wait_for(message.reply(response_text), timeout=5)
+                    os.makedirs(user_folder_path, exist_ok=True)
+                    with open(file_path, "w") as history_file:
+                        json.dump(history_data, history_file, indent=2)
+                except asyncio.TimeoutError:
+                    print(f"{Fore.LIGHTGREEN_EX}{self.user.name}{Fore.RESET}: Ответ не отправлен")
             else:
                 print("Generated response is empty. Skipping reply.")
 
