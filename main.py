@@ -92,7 +92,7 @@ class ChatGPTWrapper:
                 updated_prompt = promt
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
-                    temperature=1.4,
+                    temperature=1,
                     max_completion_tokens=30,
                     top_p=1,
                     messages=[{"role": "system", "content": updated_prompt}]
