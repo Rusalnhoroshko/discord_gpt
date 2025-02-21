@@ -8,7 +8,6 @@ import random
 from colorama import Fore
 import aiohttp
 from openai import OpenAI, OpenAIError
-import config
 import threading
 from loguru import logger
 
