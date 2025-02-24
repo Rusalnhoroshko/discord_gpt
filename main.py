@@ -12,7 +12,6 @@ import threading
 from loguru import logger
 
 
-
 # Разрешенные каналы
 allowed_channels = [2222222222222222222, #german
                     2222222222222222222, #spanish
@@ -29,9 +28,9 @@ client = OpenAI(api_key=openai_api)
 # Модель GPT
 gpt_model = "gpt-4o-mini"
 # Рандомный кулдаун в канале
-default_sleep = (60, 120)
+default_sleep = (300, 310)
 # Рандомная задержка между запуском ботов
-launch_timer = (1, 180)
+launch_timer = (1, 120)
 # Мвксимальная длина истории сообщений для каждого юзера
 MAX_HISTORY_LENGTH = 10
 
@@ -91,7 +90,7 @@ class ChatGPTWrapper:
                 updated_prompt = promt
                 response = client.chat.completions.create(
                     model="gpt-4o-mini",
-                    temperature=1,
+                    temperature=1.2,
                     max_completion_tokens=30,
                     top_p=1,
                     messages=[{"role": "system", "content": updated_prompt}]
@@ -121,6 +120,15 @@ class SelfbotClient(discord.Client):
         self.chatbot = global_chatgpt
         self.channel_cooldowns = {}
         self.allowed_chanels = []
+
+    async def on_connect(self):
+        logger.info(f"{self.user} подключается к Discord...")
+        
+    async def on_disconnect(self):
+        logger.warning(f"{self.user} отключился от Discord!")
+
+    async def on_resumed(self):
+        logger.info(f"{self.user} восстановил соединение с Discord!")
 
     async def on_ready(self):
         global BOT_IDS
@@ -200,7 +208,7 @@ class SelfbotClient(discord.Client):
                     message = random.choice(messages)
                     if (
                         message.author == self.user
-                        or message.author.id in BOT_IDS
+                        # or message.author.id in BOT_IDS
                         or message.reference
                     ):
                         continue
@@ -271,22 +279,23 @@ class SelfbotClient(discord.Client):
 
 
 def run_bot_thread(token, proxy, proxy_auth, history_folder):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        if proxy:
-            print(f"Запуск бота с токеном {token[:10]}... и прокси {proxy}")
-            bot = SelfbotClient(
-                history_folder_path=history_folder, proxy=proxy, proxy_auth=proxy_auth
-            )
-        else:
-            print(f"Запуск бота с токеном {token[:10]} без прокси")
-            bot = SelfbotClient(history_folder_path=history_folder)
-        loop.run_until_complete(bot.start(token))
-    except Exception as e:
-        logger.error(f"Ошибка при запуске бота {token[:10]}: {e}")
-    finally:
-        loop.close()
+    while True:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            if proxy:
+                print(f"Запуск бота с токеном {token[:10]}... и прокси {proxy}")
+                bot = SelfbotClient(history_folder_path=history_folder, proxy=proxy, proxy_auth=proxy_auth)
+            else:
+                print(f"Запуск бота с токеном {token[:10]} без прокси")
+                bot = SelfbotClient(history_folder_path=history_folder)
+            loop.run_until_complete(bot.start(token))
+        except Exception as e:
+            logger.error(f"Ошибка при запуске бота {token[:10]}: {e}")
+        finally:
+            loop.close()
+        logger.warning(f"Бот с токеном {token[:10]} отключился. Перезапуск через 10 секунд...")
+        time.sleep(10)
 
 
 
@@ -334,4 +343,3 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:
         print("Выход из программы...")
-
